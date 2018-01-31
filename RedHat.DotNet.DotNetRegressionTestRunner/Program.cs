@@ -12,7 +12,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
 {
     class ArgumentsAndOptions
     {
-        public String DotNetExecutible { get; set; }
+        public String DotNetHome { get; set; }
         public String TestRoot { get; set; }
 
         public bool Verbose { get; set; } = false;
@@ -32,6 +32,8 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
         public String Configuration { get; set; } // Debug, Release
 
         // TODO public String TargetFramework { get; set; }
+
+        // TODO select sdk?
 
         public string Output { get; set; }
     }
@@ -64,7 +66,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
 
             var options = ParseArgumentsAndOptions(args);
 
-            var dotnet = new FileInfo(options.DotNetExecutible);
+            var dotnet = new FileInfo(options.DotNetHome);
             var testRoot = new DirectoryInfo(options.TestRoot);
 
             var workingDirectory = new DirectoryInfo(
@@ -98,7 +100,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
                 toProcess.Remove("--verbose");
             }
 
-            result.DotNetExecutible = toProcess[0];
+            result.DotNetHome = toProcess[0];
             result.TestRoot = Path.GetFullPath(toProcess[1]);
 
             return result;
@@ -207,11 +209,14 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
 
         public static void PrintResults(List<ExecutionResult> results, TextWriter output, TextWriter error)
         {
+            // TODO add support for printing results
+
             // foreach (var result in results)
             // {
             //     output.WriteLine("Compiling: \n" + result.CompileResult.Output);
             //     output.WriteLine("Executing: \n" + result.Output);
             // }
+
             foreach (var result in results)
             {
                 if (result.Success)
