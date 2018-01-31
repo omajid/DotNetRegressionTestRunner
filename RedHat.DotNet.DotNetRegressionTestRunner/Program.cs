@@ -18,10 +18,22 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
         public bool Verbose { get; set; } = false;
     }
 
+    class ProcessExecutionResult {
+        public int ExitCode { get; set; }
+        public string Command { get; set; }
+        public StreamReader StandardOutput { get; set; }
+        public StreamReader StandardError { get; set; }
+    }
+
     class CompileResult
     {
         public bool Success { get; set; }
-        public string CompiledTarget { get; set; }
+        public DirectoryInfo WorkingDirectory { get; set; }
+        public String Configuration { get; set; } // Debug, Release
+
+        // TODO public String TargetFramework { get; set; }
+
+        public string Output { get; set; }
     }
 
     class ExecutionResult
@@ -29,22 +41,14 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
         public FileInfo File { get; }
         public bool Success { get; }
         public CompileResult CompileResult { get; }
-        public String StandardOutput { get; }
-        public String StandardError { get; }
-        public Exception Exception { get; }
+        public String Output { get; }
 
-        public ExecutionResult(FileInfo file, bool success, CompileResult compileResult, String output, String error, Exception exception)
+        public ExecutionResult(FileInfo file, bool success, CompileResult compileResult, String output)
         {
-            if (success && exception != null)
-            {
-                throw new ArgumentException("Exception on success", nameof(exception));
-            }
             this.File = file;
             this.Success = success;
             this.CompileResult = compileResult;
-            this.StandardOutput = output;
-            this.StandardError = error;
-            this.Exception = exception;
+            this.Output = output;
         }
     }
 
@@ -63,7 +67,8 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             var dotnet = new FileInfo(options.DotNetExecutible);
             var testRoot = new DirectoryInfo(options.TestRoot);
 
-            var workingDirectory = new DirectoryInfo(Path.GetTempPath());
+            var workingDirectory = new DirectoryInfo(
+                Path.Combine(Directory.GetCurrentDirectory(), "dotnetreg." + DateTimeOffset.Now.ToUnixTimeMilliseconds()));
 
             Console.WriteLine("Testing: " + dotnet);
             Console.WriteLine("Running tests at: " + testRoot);
@@ -95,7 +100,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
 
             result.DotNetExecutible = toProcess[0];
             result.TestRoot = Path.GetFullPath(toProcess[1]);
-            
+
             return result;
         }
 
@@ -116,74 +121,147 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             return files;
         }
 
-        public static List<ExecutionResult> ExecuteTests(FileInfo dotnet, DirectoryInfo workingDirectory, List<FileInfo> testFilePaths)
+        public static List<ExecutionResult> ExecuteTests(FileInfo dotnetRoot, DirectoryInfo workingDirectory, List<FileInfo> testFilePaths)
         {
             var results = new List<ExecutionResult>();
+            var originalCurrentDirectory = Directory.GetCurrentDirectory();
+
             foreach (var test in testFilePaths)
             {
-                var compileResult = CompileTest(dotnet, workingDirectory, test);
+                var newDirectory = new DirectoryInfo(Path.Combine(workingDirectory.FullName, Path.GetRandomFileName()));
+                newDirectory.Create();
+
+                var compileResult = CompileTest(dotnetRoot, newDirectory, test);
                 if (compileResult.Success)
                 {
-                    results.Add(ExecuteTest(dotnet, compileResult));
+                    results.Add(ExecuteTest(test, dotnetRoot, compileResult));
                 }
                 else
                 {
-                    var failedToCompile = new ExecutionResult(test, false, compileResult, null, null, null);
+                    var failedToCompile = new ExecutionResult(test, false, compileResult, null);
                     results.Add(failedToCompile);
                 }
-                    
             }
+            Directory.SetCurrentDirectory(originalCurrentDirectory);
 
             return results;
         }
 
         public static CompileResult CompileTest(FileInfo dotnetRoot, DirectoryInfo workingDirectory, FileInfo testFile)
         {
-            // TODO switch to some working directory layout
-            var sdkVersion = DotNet.FindBestSDKVersion();
-            var command = $"{dotnetRoot}/sdk/{sdkVersion}/Roslyn/RunCsc.sh";
-            var arguments = $" -target:library {testFile.FullName}";
-            Console.WriteLine("Invoking compiler: " + command);
+            var output = "";
 
-            var compilerInfo = new ProcessStartInfo
-            {
-                WorkingDirectory = workingDirectory.FullName,
-                UseShellExecute = false,
-                FileName = command,
-                Arguments = arguments,
-            };
+            Directory.SetCurrentDirectory(workingDirectory.FullName);
 
-            using (var compiler = Process.Start(compilerInfo))
+            // TODO select the runtime to target
+
+            var result = Exec($"{dotnetRoot}/dotnet", "new console");
+            output += CreateCommandOutput(result);
+
+            if (result.ExitCode != 0)
             {
-                compiler.WaitForExit();
-                var exitCode = compiler.ExitCode;
-                if (exitCode != 0) {
-                    return new CompileResult
-                    {
-                        CompiledTarget = "",
-                        Success = true,
-                    };
-                }
-                else
+                return new CompileResult
                 {
-                    
-                    return new CompileResult
-                    {
-                        Success = false,
-                    };
-                }
+                    Success = false,
+                    WorkingDirectory = workingDirectory,
+                    Output = output,
+                };
             }
+
+            new FileInfo(Path.Combine(workingDirectory.FullName, "Program.cs")).Delete();
+
+            testFile.CopyTo(Path.Combine(workingDirectory.FullName, testFile.Name));
+
+            result = Exec($"{dotnetRoot}/dotnet", "build");
+            output += CreateCommandOutput(result);
+
+            if (result.ExitCode != 0)
+            {
+                return new CompileResult
+                {
+                    Success = false,
+                    WorkingDirectory = workingDirectory,
+                    Output = output,
+                };
+            }
+
+            return new CompileResult
+            {
+                Success = true,
+                WorkingDirectory = workingDirectory,
+                Output = output,
+            };
         }
 
-        public static ExecutionResult ExecuteTest(FileInfo dotnet, CompileResult compileResult) 
+        public static ExecutionResult ExecuteTest(FileInfo test, FileInfo dotnetRoot, CompileResult compileResult) 
         {
-            var compiledFile = compileResult.CompiledTarget;
-            return null;
+            Directory.SetCurrentDirectory(compileResult.WorkingDirectory.FullName);
+            var applicationName = compileResult.WorkingDirectory.Name;
+
+            var result = Exec($"{dotnetRoot}/dotnet", $"bin/Debug/netcoreapp2.0/{applicationName}.dll");
+            var output = CreateCommandOutput(result);
+
+            return new ExecutionResult(test, (result.ExitCode == 0), compileResult, output);
+
         }
 
         public static void PrintResults(List<ExecutionResult> results, TextWriter output, TextWriter error)
         {
-            
+            // foreach (var result in results)
+            // {
+            //     output.WriteLine("Compiling: \n" + result.CompileResult.Output);
+            //     output.WriteLine("Executing: \n" + result.Output);
+            // }
+            foreach (var result in results)
+            {
+                if (result.Success)
+                {
+                    output.WriteLine("Pass:   " + result.File);
+                }
+                else
+                {
+                    output.WriteLine("FAILED: " + result.File);
+                }
+            }
+        }
+
+        public static ProcessExecutionResult Exec(string command, string arguments)
+        {
+            var processInfo = new ProcessStartInfo
+            {
+                UseShellExecute = false,
+                FileName = command,
+                Arguments = arguments,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            };
+
+            using (var process = Process.Start(processInfo))
+            {
+                process.WaitForExit();
+
+                return new ProcessExecutionResult
+                {
+                    Command = $"{command} {arguments}",
+                    ExitCode = process.ExitCode,
+                    StandardError = process.StandardError,
+                    StandardOutput = process.StandardOutput,
+                };
+            }
+        }
+
+        public static string CreateCommandOutput(ProcessExecutionResult result)
+        {
+            var output = "";
+            output += result.Command + "\n";
+            output += "Exit code: " + result.ExitCode;
+            output += "\n=== stdout ===\n";
+            output += result.StandardOutput.ReadToEnd();
+            output += "\n";
+            output += "\n=== stderr ===\n";
+            output += result.StandardError.ReadToEnd();
+            output += "\n";
+            return output;
         }
     }
 }
