@@ -102,7 +102,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
         public static List<FileInfo> FindTests(DirectoryInfo testRoot)
         {
             return FindCSharpFiles(testRoot)
-                .Where(Test.FileIsATest)
+                .Where(TestParser.FileIsATest)
                 .ToList();
         }
 

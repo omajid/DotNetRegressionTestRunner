@@ -6,7 +6,7 @@ using System.Text;
 
 namespace RedHat.DotNet.DotNetRegressionTestRunner
 {
-    public class Test
+    public class TestParser
     {
         public static bool FileIsATest(FileInfo sourceFile)
         {

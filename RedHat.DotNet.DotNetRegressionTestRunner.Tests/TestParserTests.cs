@@ -5,7 +5,7 @@ using Xunit;
 
 namespace RedHat.DotNet.DotNetRegressionTestRunner.Tests
 {
-    public class TestTests
+    public class TestParserTests
     {
 
         [Fact]
@@ -17,7 +17,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner.Tests
 
 ";
 
-            var extracted = Test.GetFirstComment(new StringReader(file));
+            var extracted = TestParser.GetFirstComment(new StringReader(file));
             Assert.Equal(new string[] {"// foo", "// bar" }, extracted);
         }
     
@@ -31,7 +31,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner.Tests
 // baz
 ";
 
-            var extracted = Test.GetFirstComment(new StringReader(file));
+            var extracted = TestParser.GetFirstComment(new StringReader(file));
             Assert.Equal(new string[] {"// foo", "// bar" }, extracted);
         }
     
@@ -42,7 +42,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner.Tests
             commentLines.Add("// <test>");
             commentLines.Add("// </test>");
 
-            var extracted = Test.ExtractTestHeader(commentLines);
+            var extracted = TestParser.ExtractTestHeader(commentLines);
             Assert.Equal("<test></test>", extracted);
         }
 
@@ -52,7 +52,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner.Tests
             var commentLines = new List<string>();
             commentLines.Add("// <test/>");
 
-            var extracted = Test.ExtractTestHeader(commentLines);
+            var extracted = TestParser.ExtractTestHeader(commentLines);
             Assert.Equal("<test/>", extracted);
         }
 
@@ -62,7 +62,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner.Tests
             var commentLines = new List<string>();
             commentLines.Add("// <test>");
 
-            var extracted = Test.ExtractTestHeader(commentLines);
+            var extracted = TestParser.ExtractTestHeader(commentLines);
             Assert.Equal(null, extracted);
         }
     }   
