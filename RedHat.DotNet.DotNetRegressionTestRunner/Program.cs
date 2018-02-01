@@ -1,12 +1,8 @@
 using System;
-using System.Diagnostics;
-using System.IO;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis.Text;
+using System.Text;
 
 namespace RedHat.DotNet.DotNetRegressionTestRunner
 {
@@ -18,14 +14,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
         public bool Verbose { get; set; } = false;
     }
 
-    class ProcessExecutionResult {
-        public int ExitCode { get; set; }
-        public string Command { get; set; }
-        public StreamReader StandardOutput { get; set; }
-        public StreamReader StandardError { get; set; }
-    }
-
-    class CompileResult
+    class TestCompileResult
     {
         public bool Success { get; set; }
         public DirectoryInfo WorkingDirectory { get; set; }
@@ -38,16 +27,16 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
         public string Output { get; set; }
     }
 
-    class ExecutionResult
+    class TestExecutionResult
     {
-        public FileInfo File { get; }
+        public FileInfo TestFile { get; }
         public bool Success { get; }
-        public CompileResult CompileResult { get; }
+        public TestCompileResult CompileResult { get; }
         public String Output { get; }
 
-        public ExecutionResult(FileInfo file, bool success, CompileResult compileResult, String output)
+        public TestExecutionResult(FileInfo testFile, bool success, TestCompileResult compileResult, String output)
         {
-            this.File = file;
+            this.TestFile = testFile;
             this.Success = success;
             this.CompileResult = compileResult;
             this.Output = output;
@@ -71,15 +60,20 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
 
             var workingDirectory = new DirectoryInfo(
                 Path.Combine(Directory.GetCurrentDirectory(), "dotnetreg." + DateTimeOffset.Now.ToUnixTimeMilliseconds()));
+            var reportFile = new FileInfo(Path.Combine(workingDirectory.FullName, "report.txt"));
 
             Console.WriteLine("Testing: " + dotnet);
             Console.WriteLine("Running tests at: " + testRoot);
             Console.WriteLine("Working directory: " + workingDirectory);
+            Console.WriteLine("Full report at: " + reportFile);
+            Console.WriteLine();
 
             var tests = FindTests(testRoot);
             var results = ExecuteTests(dotnet, workingDirectory, tests);
 
-            PrintResults(results, Console.Out, Console.Error);
+
+            PrintSummary(results, Console.Out, Console.Error);
+            WriteReport(results, reportFile);
 
             Environment.Exit(0);
         }
@@ -123,9 +117,9 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             return files;
         }
 
-        public static List<ExecutionResult> ExecuteTests(FileInfo dotnetRoot, DirectoryInfo workingDirectory, List<FileInfo> testFilePaths)
+        public static List<TestExecutionResult> ExecuteTests(FileInfo dotnetRoot, DirectoryInfo workingDirectory, List<FileInfo> testFilePaths)
         {
-            var results = new List<ExecutionResult>();
+            var results = new List<TestExecutionResult>();
             var originalCurrentDirectory = Directory.GetCurrentDirectory();
 
             foreach (var test in testFilePaths)
@@ -140,7 +134,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
                 }
                 else
                 {
-                    var failedToCompile = new ExecutionResult(test, false, compileResult, null);
+                    var failedToCompile = new TestExecutionResult(test, false, compileResult, null);
                     results.Add(failedToCompile);
                 }
             }
@@ -149,7 +143,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             return results;
         }
 
-        public static CompileResult CompileTest(FileInfo dotnetRoot, DirectoryInfo workingDirectory, FileInfo testFile)
+        public static TestCompileResult CompileTest(FileInfo dotnetRoot, DirectoryInfo workingDirectory, FileInfo testFile)
         {
             var output = "";
 
@@ -157,12 +151,12 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
 
             // TODO select the runtime to target
 
-            var result = Exec($"{dotnetRoot}/dotnet", "new console");
+            var result = Utilities.Exec($"{dotnetRoot}/dotnet", "new console");
             output += CreateCommandOutput(result);
 
             if (result.ExitCode != 0)
             {
-                return new CompileResult
+                return new TestCompileResult
                 {
                     Success = false,
                     WorkingDirectory = workingDirectory,
@@ -174,97 +168,94 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
 
             testFile.CopyTo(Path.Combine(workingDirectory.FullName, testFile.Name));
 
-            result = Exec($"{dotnetRoot}/dotnet", "build");
+            result = Utilities.Exec($"{dotnetRoot}/dotnet", "build");
             output += CreateCommandOutput(result);
 
-            if (result.ExitCode != 0)
+            return new TestCompileResult
             {
-                return new CompileResult
-                {
-                    Success = false,
-                    WorkingDirectory = workingDirectory,
-                    Output = output,
-                };
-            }
-
-            return new CompileResult
-            {
-                Success = true,
+                Success = (result.ExitCode == 0),
                 WorkingDirectory = workingDirectory,
                 Output = output,
             };
         }
 
-        public static ExecutionResult ExecuteTest(FileInfo test, FileInfo dotnetRoot, CompileResult compileResult) 
+        public static TestExecutionResult ExecuteTest(FileInfo test, FileInfo dotnetRoot, TestCompileResult compileResult)
         {
             Directory.SetCurrentDirectory(compileResult.WorkingDirectory.FullName);
             var applicationName = compileResult.WorkingDirectory.Name;
 
-            var result = Exec($"{dotnetRoot}/dotnet", $"bin/Debug/netcoreapp2.0/{applicationName}.dll");
+            var result = Utilities.Exec($"{dotnetRoot}/dotnet", $"bin/Debug/netcoreapp2.0/{applicationName}.dll");
             var output = CreateCommandOutput(result);
 
-            return new ExecutionResult(test, (result.ExitCode == 0), compileResult, output);
-
+            return new TestExecutionResult(test, (result.ExitCode == 0), compileResult, output);
         }
 
-        public static void PrintResults(List<ExecutionResult> results, TextWriter output, TextWriter error)
+        public static void PrintSummary(List<TestExecutionResult> results, TextWriter output, TextWriter error)
         {
-            // TODO add support for printing results
-
-            // foreach (var result in results)
-            // {
-            //     output.WriteLine("Compiling: \n" + result.CompileResult.Output);
-            //     output.WriteLine("Executing: \n" + result.Output);
-            // }
+            var total = 0;
+            var passed = 0;
+            var failed = 0;
 
             foreach (var result in results)
             {
+                total++;
                 if (result.Success)
                 {
-                    output.WriteLine("Pass:   " + result.File);
+                    passed++;
+                    output.WriteLine("Pass:   " + result.TestFile);
                 }
                 else
                 {
-                    output.WriteLine("FAILED: " + result.File);
+                    failed++;
+                    output.WriteLine("FAILED: " + result.TestFile);
                 }
             }
+
+            output.WriteLine();
+            output.WriteLine("Total: " + total + " Passed: " + passed + " Failed: " + failed);
+            output.WriteLine();
         }
 
-        public static ProcessExecutionResult Exec(string command, string arguments)
+        public static void WriteReport(List<TestExecutionResult> results, FileInfo report)
         {
-            var processInfo = new ProcessStartInfo
-            {
-                UseShellExecute = false,
-                FileName = command,
-                Arguments = arguments,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-            };
+            File.WriteAllText(report.FullName, GenerateReport(results));
+        }
 
-            using (var process = Process.Start(processInfo))
-            {
-                process.WaitForExit();
+        public static string GenerateReport(List<TestExecutionResult> results)
+        {
+            var report = new StringBuilder();
 
-                return new ProcessExecutionResult
+            // TODO what more information would be useful to have?
+
+            report.AppendLine("Test Report");
+            report.AppendLine("Generated on " + DateTime.Now);
+            report.AppendLine();
+
+            foreach (var result in results)
+            {
+                report.AppendLine("# Test: " + result.TestFile);
+                report.AppendLine("# Compiling: \n" + result.CompileResult.Output);
+                if (result.CompileResult.Success)
                 {
-                    Command = $"{command} {arguments}",
-                    ExitCode = process.ExitCode,
-                    StandardError = process.StandardError,
-                    StandardOutput = process.StandardOutput,
-                };
+                    report.AppendLine("# Executing: \n" + result.Output);
+                }
+                report.AppendLine();
             }
+
+            return report.ToString();
         }
 
         public static string CreateCommandOutput(ProcessExecutionResult result)
         {
             var output = "";
             output += result.Command + "\n";
-            output += "Exit code: " + result.ExitCode;
-            output += "\n=== stdout ===\n";
-            output += result.StandardOutput.ReadToEnd();
-            output += "\n";
-            output += "\n=== stderr ===\n";
-            output += result.StandardError.ReadToEnd();
+            output += "Exit code: " + result.ExitCode + "\n";
+            output += "=== stdout ===\n";
+            output += result.StandardOutput.ReadToEnd() + "\n";
+            output += "=== stdout end ===\n";
+            output += "=== stderr ===\n";
+            output += result.StandardError.ReadToEnd() + "\n";
+            output += "=== stderr end ===\n";
             output += "\n";
             return output;
         }

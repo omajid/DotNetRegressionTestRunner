@@ -1,6 +1,9 @@
 
 all: build
 
+run-samples:
+	dotnet run --project RedHat.DotNet.DotNetRegressionTestRunner $$(dirname $$(readlink -f $$(which dotnet))) Samples
+
 build:
 	# dotnet build -c Release RedHat.DotNet.DotNetRegressionTestRunner
 	dotnet build -c Release RedHat.DotNet.DotNetRegressionTestRunner.Tests
@@ -15,3 +18,4 @@ clean:
 	rm -rf RedHat.DotNet.DotNetRegressionTestRunner/bin
 	rm -rf RedHat.DotNet.DotNetRegressionTestRunner.Tests/obj
 	rm -rf RedHat.DotNet.DotNetRegressionTestRunner.Tests/bin
+	rm -rf dotnetreg.*
