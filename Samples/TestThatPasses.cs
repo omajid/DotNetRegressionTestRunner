@@ -4,7 +4,7 @@ using System;
 
 namespace Samples
 {
-    public class Test
+    public class TestThatPasses
     {
         static void Main(string[] args)
         {
