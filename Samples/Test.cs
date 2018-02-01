@@ -1,8 +1,10 @@
+// <test/>
+
 using System;
 
-namespace temp
+namespace Samples
 {
-    class Program2
+    public class Test
     {
         static void Main(string[] args)
         {

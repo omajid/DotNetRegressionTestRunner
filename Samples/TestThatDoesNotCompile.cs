@@ -1,12 +1,13 @@
+// <test/>
+
 using System;
 
-namespace temp
+namespace Samples
 {
-    class Program
+    public class TestThatDoesNotCompile
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
             Console.Wri
         }
     }

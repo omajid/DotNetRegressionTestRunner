@@ -11,11 +11,13 @@ under the `/path/to/tests` root.
 
 Here is a simple test:
 
+    // <test>
+    // <requires runtime=">2.0"/>
+    // </test>
+
     using System;
     using System.IO;
 
-    // <test/>
-    // <requires runtime=">2.0"/>
     namespace Foo
     {
         class Bar
@@ -27,7 +29,10 @@ Here is a simple test:
         }
     }
 
-A `<test>` marker indicates that this is a test for this framework.
+A comment block must be the first set of lines in file. It must
+contain a `<test>` element.
+
+A `<test>` element indicates that this is a test for this framework.
 Other files will not be executed.
 
 `<requires>` places constraints on which runtime version this test
