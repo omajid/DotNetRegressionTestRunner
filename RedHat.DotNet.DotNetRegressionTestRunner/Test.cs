@@ -1,72 +1,88 @@
 using System;
-using System.IO;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
-using System;
-using System.Diagnostics;
 using System.IO;
-using System.Collections.Generic;
 using System.Linq;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis.Text;
+using System.Text;
 
 namespace RedHat.DotNet.DotNetRegressionTestRunner
 {
     public class Test
     {
-        public static bool FileIsATest(FileInfo filePath)
+        public static bool FileIsATest(FileInfo sourceFile)
         {
-            using (StreamReader reader = filePath.OpenText())
-            {
-                // TODO is this really a good idea? We are using our
-                // version of roslyn to parse the source. If there are
-                // bugs in our version of roslyn, or the test contains
-                // newer language features, we might run into issues.
-                // It might be better to resort to bad regular
-                // expressions for this.
-            
-                var sourceCode = reader.ReadToEnd();
-                var text = SourceText.From(sourceCode);
-                var syntaxTree = CSharpSyntaxTree.ParseText(text);
-                syntaxTree.TryGetRoot(out var root);
+            var comments = GetFirstComment(sourceFile);
+            var header = ExtractTestHeader(comments);
 
-                return root.DescendantNodes()
-                    .OfType<MethodDeclarationSyntax>()
-                    .Where(IsMain)
-                    .Any();
+            return header != null;
+        }
+
+        public static List<string> GetFirstComment(FileInfo sourceFile)
+        {
+            using (StreamReader reader = sourceFile.OpenText())
+            {
+                return GetFirstComment(reader);
             }
         }
 
-        private static bool IsMain(MethodDeclarationSyntax syntax)
+        public static List<string> GetFirstComment(TextReader reader)
         {
-            var isMain = syntax.Identifier.Value.Equals("Main");
-            var isVoid = syntax.ReturnType is PredefinedTypeSyntax &&
-                ((PredefinedTypeSyntax)syntax.ReturnType).Keyword.Value.Equals("void");
-
-            var hasOneStringArrayArgument = false;
-            
-            var parameters = syntax.ParameterList.Parameters.ToList();
-            if (parameters.Count() == 1)
+            var comments = new List<string>();
+            var sourceLine = "";
+            while (sourceLine != null && !sourceLine.Trim().StartsWith("//"))
             {
-                var id = parameters[0].Identifier;
-                var isArray = parameters[0].Type.IsKind(SyntaxKind.ArrayType);
-                if (isArray)
+                sourceLine = reader.ReadLine();
+            }
+
+            while (sourceLine != null && sourceLine.Trim().StartsWith("//"))
+            {
+                comments.Add(sourceLine.Trim());
+                sourceLine = reader.ReadLine();
+            }
+
+            return comments;
+        }
+
+        public static string ExtractTestHeader(List<string> lines)
+        {
+            StringBuilder header = new StringBuilder();
+
+            bool foundStart = false;
+
+            foreach (var line in lines)
+            {
+                var processedLine = line.Substring("//".Length).Trim();
+
+                if (foundStart)
                 {
-                    var elementType = ((ArrayTypeSyntax)parameters[0].Type).ElementType;
-                    if (elementType is PredefinedTypeSyntax)
+                    var endIndex = processedLine.IndexOf("</test>");
+                    if (endIndex == -1)
                     {
-                        var isStringArray = ((PredefinedTypeSyntax)elementType)
-                            .Keyword.IsKind(SyntaxKind.StringKeyword);
-                        hasOneStringArrayArgument = true;
+                        header.Append(processedLine);
                     }
+                    else
+                    {
+                        header.Append(processedLine.Substring(0, endIndex + "</test>".Length));
+                        return header.ToString();
+                    }
+                }
+                else
+                {
+                    if (processedLine.StartsWith("<test/>"))
+                    {
+                        return "<test/>";
+                    }
+
+                    if (processedLine.StartsWith("<test>"))
+                    {
+                        foundStart = true;
+                    }
+                    header.Append(processedLine);
+
                 }
             }
 
-            var hasTypeParameters = syntax.TypeParameterList != null;
-
-            return isVoid && isMain && !hasTypeParameters && hasOneStringArrayArgument;
+            // malformed header
+            return null;
         }
 
         public static bool FileTargetsCurrentRuntime(FileInfo sourceFile)

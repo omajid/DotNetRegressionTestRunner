@@ -71,7 +71,6 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             var tests = FindTests(testRoot);
             var results = ExecuteTests(dotnet, workingDirectory, tests);
 
-
             PrintSummary(results, Console.Out, Console.Error);
             WriteReport(results, reportFile);
 
