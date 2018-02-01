@@ -7,7 +7,7 @@ with `Main` methods - that can exercise features in the desired .NET
 Core sdk/runtimes.
 
 This is inspired by
-[jtreg](https://github.com/crummel/source-build-tarball-2.0.5).
+[jtreg](http://openjdk.java.net/jtreg/).
 
 ## How
 
