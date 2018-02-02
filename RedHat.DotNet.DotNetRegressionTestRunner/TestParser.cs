@@ -3,18 +3,40 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Xml;
+using System.Xml.Schema;
 
 namespace RedHat.DotNet.DotNetRegressionTestRunner
 {
+    public class TestHeader
+    {
+        public VersionRange TargetRuntimeVersion { get; set; }
+    }
+
     public class TestParser
     {
         public static bool FileIsATest(FileInfo sourceFile)
         {
-            var comments = GetFirstComment(sourceFile);
-            var header = ExtractTestHeader(comments);
-
+            var header = ParseTestHeader(sourceFile);
             return header != null;
         }
+
+        public static bool FileTargetsCurrentRuntime(FileInfo sourceFile)
+        {
+            var header = ParseTestHeader(sourceFile);
+            var currentVersion = GetCurrentRuntimeVersion();
+            return header.TargetRuntimeVersion.IsVersionInRange(currentVersion);
+        }
+
+        public static TestHeader ParseTestHeader(FileInfo sourceFile)
+        {
+            var comments = GetFirstComment(sourceFile);
+            var header = ParseExtractedTestHeader(ExtractTestHeader(comments));
+
+            return header;
+        }
+
+        #region implementation details
 
         public static List<string> GetFirstComment(FileInfo sourceFile)
         {
@@ -85,10 +107,53 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             return null;
         }
 
-        public static bool FileTargetsCurrentRuntime(FileInfo sourceFile)
+        public static System.Version GetCurrentRuntimeVersion()
         {
-            // TODO
-            return true;
+            var assembly = typeof(System.Runtime.GCSettings).Assembly;
+            // codebase looks like
+            // file:///usr/lib64/dotnet/shared/Microsoft.NETCore.App/2.0.3/System.Private.CoreLib.dll
+            var codebase = assembly.CodeBase;
+            var pathParts = codebase.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
+            var index = Array.IndexOf(pathParts, "Microsoft.NETCore.App");
+            if (index != -1)
+            {
+                var fullCurrentVersion = new Version(pathParts[index + 1]);
+                var currentVersion = new Version(fullCurrentVersion.Major, fullCurrentVersion.Minor);
+                return currentVersion;
+            }
+            return null;
         }
+
+        public static TestHeader ParseExtractedTestHeader(string headerText)
+        {
+            if (headerText == null)
+            {
+                return null;
+            }
+
+            var runtimeVersionRange = new VersionRange();
+
+            XmlDocument doc = new XmlDocument();
+            doc.LoadXml(headerText);
+
+            var requiresNode = doc.SelectSingleNode("/test/requires");
+            if (requiresNode != null)
+            {
+                foreach (XmlAttribute attribute in requiresNode.Attributes)
+                {
+                    if (attribute.Name == "runtime")
+                    {
+                        runtimeVersionRange = VersionRange.Parse(attribute.Value);
+                    }
+                }
+            }
+
+            return new TestHeader
+            {
+                TargetRuntimeVersion = runtimeVersionRange,
+            };
+        }
+
+        #endregion
     }
 }

@@ -103,6 +103,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
         {
             return FindCSharpFiles(testRoot)
                 .Where(TestParser.FileIsATest)
+                .Where(TestParser.FileTargetsCurrentRuntime)
                 .ToList();
         }
 

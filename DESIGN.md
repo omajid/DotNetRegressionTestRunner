@@ -12,7 +12,7 @@ under the `/path/to/tests` root.
 Here is a simple test:
 
     // <test>
-    // <requires runtime=">2.0"/>
+    // <requires runtime="[,2.0)"/>
     // </test>
 
     using System;
