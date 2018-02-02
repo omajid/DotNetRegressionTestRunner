@@ -55,8 +55,15 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
 
             var options = ParseArgumentsAndOptions(args);
 
-            var dotnet = new FileInfo(options.DotNetHome);
+            var dotnet = new DirectoryInfo(options.DotNetHome);
             var testRoot = new DirectoryInfo(options.TestRoot);
+
+            if (!DotNet.IsValidDotNetHome(dotnet))
+            {
+                Console.Error.WriteLine(dotnet + " does not look like a .NET Core home directory");
+                PrintUsage(Console.Error);
+                Environment.Exit(2);
+            }
 
             var workingDirectory = new DirectoryInfo(
                 Path.Combine(Directory.GetCurrentDirectory(), "dotnetreg." + DateTimeOffset.Now.ToUnixTimeMilliseconds()));
@@ -117,7 +124,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             return files;
         }
 
-        public static List<TestExecutionResult> ExecuteTests(FileInfo dotnetRoot, DirectoryInfo workingDirectory, List<FileInfo> testFilePaths)
+        public static List<TestExecutionResult> ExecuteTests(DirectoryInfo dotnetRoot, DirectoryInfo workingDirectory, List<FileInfo> testFilePaths)
         {
             var results = new List<TestExecutionResult>();
             var originalCurrentDirectory = Directory.GetCurrentDirectory();
@@ -143,7 +150,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             return results;
         }
 
-        public static TestCompileResult CompileTest(FileInfo dotnetRoot, DirectoryInfo workingDirectory, FileInfo testFile)
+        public static TestCompileResult CompileTest(DirectoryInfo dotnetRoot, DirectoryInfo workingDirectory, FileInfo testFile)
         {
             var output = "";
 
@@ -179,7 +186,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             };
         }
 
-        public static TestExecutionResult ExecuteTest(FileInfo test, FileInfo dotnetRoot, TestCompileResult compileResult)
+        public static TestExecutionResult ExecuteTest(FileInfo test, DirectoryInfo dotnetRoot, TestCompileResult compileResult)
         {
             Directory.SetCurrentDirectory(compileResult.WorkingDirectory.FullName);
             var applicationName = compileResult.WorkingDirectory.Name;

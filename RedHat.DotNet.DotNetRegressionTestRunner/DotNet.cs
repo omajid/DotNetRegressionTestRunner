@@ -1,6 +1,7 @@
 using System;
-using System.IO;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace RedHat.DotNet.DotNetRegressionTestRunner
@@ -11,6 +12,20 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
         {
             // TODO FIXME
             return "2.0.3";
+        }
+
+        public static bool IsValidDotNetHome(DirectoryInfo dotNetHome)
+        {
+            if (!dotNetHome.Exists)
+            {
+                return false;
+            }
+
+            var dotNetExecutible = new FileInfo(Path.Combine(dotNetHome.FullName, "dotnet"));
+            return dotNetHome
+                .EnumerateFiles()
+                .Where(file => file.FullName == dotNetExecutible.FullName)
+                .Any();
         }
 
         public static System.Version GetCurrentRuntimeVersion()
@@ -29,6 +44,5 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             }
             return null;
         }
-
     }
 }
