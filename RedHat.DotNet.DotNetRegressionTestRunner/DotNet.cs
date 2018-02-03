@@ -28,21 +28,25 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
                 .Any();
         }
 
-        public static System.Version GetCurrentRuntimeVersion()
+        public static IEnumerable<System.Version> GetAvailableRuntimeVersions(DirectoryInfo dotNetHome)
         {
-            var assembly = typeof(System.Runtime.GCSettings).Assembly;
-            // codebase looks like
-            // file:///usr/lib64/dotnet/shared/Microsoft.NETCore.App/2.0.3/System.Private.CoreLib.dll
-            var codebase = assembly.CodeBase;
-            var pathParts = codebase.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
-            var index = Array.IndexOf(pathParts, "Microsoft.NETCore.App");
-            if (index != -1)
-            {
-                var fullCurrentVersion = new Version(pathParts[index + 1]);
-                var currentVersion = new Version(fullCurrentVersion.Major, fullCurrentVersion.Minor);
-                return currentVersion;
-            }
-            return null;
+            var netCoreAppDir = new DirectoryInfo(Path.Combine(dotNetHome.FullName, "shared", "Microsoft.NETCore.App"));
+
+            var runtimes = netCoreAppDir
+                .EnumerateDirectories()
+                .Select(dir => new Version(dir.Name))
+                // remove patch update version numbers because that
+                // will just make it harder for users to expect the
+                // right thing with ranges such as: [,2.0]
+                .Select(version => new Version(version.Major, version.Minor));
+
+            return runtimes;
+        }
+
+        public static IEnumerable<string> GetAvailableFrameworks(DirectoryInfo dotNetHome)
+        {
+            // FIXME
+            return new string[] { "netcoreapp2.0" };
         }
     }
 }

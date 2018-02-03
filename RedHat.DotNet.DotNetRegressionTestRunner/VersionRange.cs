@@ -17,7 +17,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             return (MinVersionInclusive ? "[" : "(") + MinVersion + "," + MaxVersion + (MaxVersionInclusive ? "]" : ")");
         }
 
-        public bool IsVersionInRange(Version version)
+        public bool IsInRange(Version version)
         {
             if ((version < MinVersion) || (version > MaxVersion))
             {

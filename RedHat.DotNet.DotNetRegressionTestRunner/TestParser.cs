@@ -10,8 +10,9 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
 {
     public class TestHeader
     {
-        public VersionRange TargetRuntimeVersion { get; set; }
         public string Configuration { get; set; }
+        public string TargetFramework { get; set; }
+        public VersionRange TargetRuntimeVersion { get; set; }
     }
 
     public class TestParser
@@ -22,11 +23,23 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             return header != null;
         }
 
-        public static bool FileTargetsCurrentRuntime(FileInfo sourceFile)
+        public static bool FileTargetsAvailableRuntime(DirectoryInfo dotNetHome, FileInfo sourceFile)
         {
             var header = ParseTestHeader(sourceFile);
-            var currentVersion = DotNet.GetCurrentRuntimeVersion();
-            return header.TargetRuntimeVersion.IsVersionInRange(currentVersion);
+            var currentVersion = DotNet.GetAvailableRuntimeVersions(dotNetHome);
+            return currentVersion
+                .ToList()
+                .Where(versionRange => header.TargetRuntimeVersion.IsInRange(versionRange))
+                .Any();
+        }
+
+        public static bool FileTargetsAvailableFramework(DirectoryInfo dotNetHome, FileInfo sourceFile)
+        {
+            var header = ParseTestHeader(sourceFile);
+            var availableFrameworks = DotNet.GetAvailableFrameworks(dotNetHome);
+            return availableFrameworks
+                .Where(framework => header.TargetFramework == framework)
+                .Any();
         }
 
         public static TestHeader ParseTestHeader(FileInfo sourceFile)
@@ -117,12 +130,13 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
 
             var runtimeVersionRange = new VersionRange();
             string configuration = "Debug";
+            var targetFramework = "netcoreapp2.0";
 
             XmlDocument doc = new XmlDocument();
             doc.LoadXml(headerText);
 
-            var requiresNode = doc.SelectSingleNode("/test/requires");
-            if (requiresNode != null)
+            var requiresNodes = doc.SelectNodes("/test/requires");
+            foreach (XmlNode requiresNode in requiresNodes)
             {
                 foreach (XmlAttribute attribute in requiresNode.Attributes)
                 {
@@ -133,8 +147,8 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
                 }
             }
 
-            var compileNode = doc.SelectSingleNode("/test/compile");
-            if (compileNode != null)
+            var compileNodes = doc.SelectNodes("/test/compile");
+            foreach (XmlNode compileNode in compileNodes)
             {
                 foreach (XmlAttribute attribute in compileNode.Attributes)
                 {
@@ -153,13 +167,19 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
                                 throw new Exception("Unable to parse compile configuration: " + configuration);
                         }
                     }
+
+                    if (attribute.Name == "framework")
+                    {
+                        targetFramework = attribute.Value.ToLowerInvariant();
+                    }
                 }
             }
 
             return new TestHeader
             {
-                TargetRuntimeVersion = runtimeVersionRange,
                 Configuration = configuration,
+                TargetFramework = targetFramework,
+                TargetRuntimeVersion = runtimeVersionRange,
             };
         }
 

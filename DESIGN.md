@@ -13,6 +13,7 @@ Here is a simple test:
 
     // <test>
     // <requires runtime="[,2.0)"/>
+    // <compile framework="netcoreapp2.0"/>
     // <compile configuration="Debug"/>
     // </test>
 
@@ -44,7 +45,8 @@ it should only be run against runtimes with version 2.0 to 2.1,
 inclusive.
 
 `<compile>` allows selecting how the program is compiled.
-`configuration` can be `Debug` or `Release`.
+`configuration` can be `Debug` or `Release`. `framework` can be any
+known framework to target, such as `netcoreapp2.0`.
 
 Each test will be compiled and executed in a separate process. It is
 okay for tests to do something that crashes the CLR. A test that exits

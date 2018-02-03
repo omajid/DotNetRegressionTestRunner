@@ -93,11 +93,22 @@ using System;
         }
 
         [Fact]
+        public void DefaultTargetRuntimeVersionIsAll()
+        {
+            var header = "<test/>";
+            var extracted = TestParser.ParseExtractedTestHeader(header);
+            var targetVersion = extracted.TargetRuntimeVersion;
+
+            Assert.Equal(new Version(0,0), targetVersion.MinVersion);
+            Assert.Equal(new Version(int.MaxValue,int.MaxValue), targetVersion.MaxVersion);
+        }
+
+        [Fact]
         public void RuntimeInTestHeaderIsParsedCorrectly()
         {
-            var extractedHeader = "<test><requires runtime=\"[1.0,2.0)\" /></test>";
+            var header = "<test><requires runtime=\"[1.0,2.0)\" /></test>";
 
-            var extracted = TestParser.ParseExtractedTestHeader(extractedHeader);
+            var extracted = TestParser.ParseExtractedTestHeader(header);
 
             var minVersion = new Version("1.0");
             var minVersionInclusive = true;
@@ -111,23 +122,35 @@ using System;
         }
 
         [Fact]
-        public void MissingConfigurationIsParsedAsDebug()
+        public void DefaultConfigurationIsDebug()
         {
-            var extractedHeader = "<test/>";
-
-            var extracted = TestParser.ParseExtractedTestHeader(extractedHeader);
-
+            var header = "<test/>";
+            var extracted = TestParser.ParseExtractedTestHeader(header);
             Assert.Equal("Debug", extracted.Configuration);
         }
 
         [Fact]
         public void ConfigurationInTestHeaderIsParsedCorrectly()
         {
-            var extractedHeader = "<test><compile configuration=\"release\"/></test>";
-
-            var extracted = TestParser.ParseExtractedTestHeader(extractedHeader);
-
+            var header = "<test><compile configuration=\"release\"/></test>";
+            var extracted = TestParser.ParseExtractedTestHeader(header);
             Assert.Equal("Release", extracted.Configuration);
+        }
+
+        [Fact]
+        public void DefaultTargetFrameworkIsNetCoreApp()
+        {
+            var header = "<test/>";
+            var extracted = TestParser.ParseExtractedTestHeader(header);
+            Assert.Equal("netcoreapp2.0", extracted.TargetFramework);
+        }
+
+        [Fact]
+        public void TargetFrameworkIsParsedCorrectly()
+        {
+            var header = "<test><compile framework=\"foobar\" /></test>";
+            var extracted = TestParser.ParseExtractedTestHeader(header);
+            Assert.Equal("foobar", extracted.TargetFramework);
         }
     }   
 }

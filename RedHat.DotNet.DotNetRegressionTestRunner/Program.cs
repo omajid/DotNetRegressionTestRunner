@@ -19,8 +19,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
         public bool Success { get; set; }
         public DirectoryInfo WorkingDirectory { get; set; }
         public String Configuration { get; set; } // Debug, Release
-
-        // TODO public String TargetFramework { get; set; }
+        public String TargetFramework { get; set; }
 
         // TODO select sdk?
 
@@ -75,7 +74,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             Console.WriteLine("Full report at: " + reportFile);
             Console.WriteLine();
 
-            var tests = FindTests(testRoot);
+            var tests = FindTests(dotnet, testRoot);
             var results = ExecuteTests(dotnet, workingDirectory, tests);
 
             PrintSummary(results, Console.Out, Console.Error);
@@ -106,11 +105,12 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             return result;
         }
 
-        public static List<FileInfo> FindTests(DirectoryInfo testRoot)
+        public static List<FileInfo> FindTests(DirectoryInfo dotNetHome, DirectoryInfo testRoot)
         {
             return FindCSharpFiles(testRoot)
                 .Where(TestParser.FileIsATest)
-                .Where(TestParser.FileTargetsCurrentRuntime)
+                .Where(file => TestParser.FileTargetsAvailableRuntime(dotNetHome, file))
+                .Where(file => TestParser.FileTargetsAvailableFramework(dotNetHome, file))
                 .ToList();
         }
 
@@ -155,6 +155,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             var output = "";
             TestHeader header = TestParser.ParseTestHeader(testFile);
             var configurationCommand = " -c " + header.Configuration;
+            var frameworkCommand = " -f " + header.TargetFramework;
 
             Directory.SetCurrentDirectory(workingDirectory.FullName);
 
@@ -167,9 +168,11 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             {
                 return new TestCompileResult
                 {
-                    Success = false,
-                    WorkingDirectory = workingDirectory,
+                    Configuration = header.Configuration,
                     Output = output,
+                    Success = false,
+                    TargetFramework = header.TargetFramework,
+                    WorkingDirectory = workingDirectory,
                 };
             }
 
@@ -177,15 +180,16 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
 
             testFile.CopyTo(Path.Combine(workingDirectory.FullName, testFile.Name));
 
-            result = Utilities.Exec($"{dotnetRoot}/dotnet", "build" + configurationCommand);
+            result = Utilities.Exec($"{dotnetRoot}/dotnet", "build" + configurationCommand + frameworkCommand);
             output += CreateCommandOutput(result);
 
             return new TestCompileResult
             {
-                Success = (result.ExitCode == 0),
-                WorkingDirectory = workingDirectory,
                 Configuration = header.Configuration,
                 Output = output,
+                Success = (result.ExitCode == 0),
+                TargetFramework = header.TargetFramework,
+                WorkingDirectory = workingDirectory,
             };
         }
 
@@ -194,8 +198,9 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             Directory.SetCurrentDirectory(compileResult.WorkingDirectory.FullName);
             var applicationName = compileResult.WorkingDirectory.Name;
             var configuration = compileResult.Configuration;
+            var targetFramework = compileResult.TargetFramework;
 
-            var result = Utilities.Exec($"{dotnetRoot}/dotnet", $"bin/{configuration}/netcoreapp2.0/{applicationName}.dll");
+            var result = Utilities.Exec($"{dotnetRoot}/dotnet", $"bin/{configuration}/{targetFramework}/{applicationName}.dll");
             var output = CreateCommandOutput(result);
 
             return new TestExecutionResult(test, (result.ExitCode == 0), compileResult, output);
