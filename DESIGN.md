@@ -13,6 +13,7 @@ Here is a simple test:
 
     // <test>
     // <requires runtime="[,2.0)"/>
+    // <compile configuration="Debug"/>
     // </test>
 
     using System;
@@ -38,6 +39,9 @@ Other files will not be executed.
 `<requires>` places constraints on which runtime version this test
 will be compiled and executed for. This framework will only run tests
 that target the runtime provided with `/path/to/dotnet/to/test`.
+
+`<compile>` allows selecting how the program is compiled.
+`configuration` can be `Debug` or `Release`.
 
 Each test will be compiled and executed in a separate process. It is
 okay for tests to do something that crashes the CLR. A test that exits

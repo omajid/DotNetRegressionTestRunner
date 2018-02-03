@@ -93,27 +93,41 @@ using System;
         }
 
         [Fact]
-        public void TestHeaderIsParsedCorrectly()
+        public void RuntimeInTestHeaderIsParsedCorrectly()
         {
             var extractedHeader = "<test><requires runtime=\"[1.0,2.0)\" /></test>";
 
             var extracted = TestParser.ParseExtractedTestHeader(extractedHeader);
 
-            var expected = new TestHeader
-            {
-                TargetRuntimeVersion = new VersionRange
-                {
-                    MinVersion = new Version("1.0"),
-                    MinVersionInclusive = true,
-                    MaxVersion = new Version("2.0"),
-                    MaxVersionInclusive = false,
-                },
-            };
+            var minVersion = new Version("1.0");
+            var minVersionInclusive = true;
+            var maxVersion = new Version("2.0");
+            var maxVersionInclusive = false;
 
-            Assert.Equal(expected.TargetRuntimeVersion.MinVersion, extracted.TargetRuntimeVersion.MinVersion);
-            Assert.Equal(expected.TargetRuntimeVersion.MinVersionInclusive, extracted.TargetRuntimeVersion.MinVersionInclusive);
-            Assert.Equal(expected.TargetRuntimeVersion.MaxVersion, extracted.TargetRuntimeVersion.MaxVersion);
-            Assert.Equal(expected.TargetRuntimeVersion.MaxVersionInclusive, extracted.TargetRuntimeVersion.MaxVersionInclusive);
+            Assert.Equal(minVersion, extracted.TargetRuntimeVersion.MinVersion);
+            Assert.Equal(minVersionInclusive, extracted.TargetRuntimeVersion.MinVersionInclusive);
+            Assert.Equal(maxVersion, extracted.TargetRuntimeVersion.MaxVersion);
+            Assert.Equal(maxVersionInclusive, extracted.TargetRuntimeVersion.MaxVersionInclusive);
+        }
+
+        [Fact]
+        public void MissingConfigurationIsParsedAsDebug()
+        {
+            var extractedHeader = "<test/>";
+
+            var extracted = TestParser.ParseExtractedTestHeader(extractedHeader);
+
+            Assert.Equal("Debug", extracted.Configuration);
+        }
+
+        [Fact]
+        public void ConfigurationInTestHeaderIsParsedCorrectly()
+        {
+            var extractedHeader = "<test><compile configuration=\"release\"/></test>";
+
+            var extracted = TestParser.ParseExtractedTestHeader(extractedHeader);
+
+            Assert.Equal("Release", extracted.Configuration);
         }
     }   
 }

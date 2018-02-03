@@ -11,6 +11,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
     public class TestHeader
     {
         public VersionRange TargetRuntimeVersion { get; set; }
+        public string Configuration { get; set; }
     }
 
     public class TestParser
@@ -115,6 +116,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             }
 
             var runtimeVersionRange = new VersionRange();
+            string configuration = "Debug";
 
             XmlDocument doc = new XmlDocument();
             doc.LoadXml(headerText);
@@ -131,9 +133,33 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
                 }
             }
 
+            var compileNode = doc.SelectSingleNode("/test/compile");
+            if (compileNode != null)
+            {
+                foreach (XmlAttribute attribute in compileNode.Attributes)
+                {
+                    if (attribute.Name == "configuration")
+                    {
+                        configuration = attribute.Value;
+                        switch (configuration.ToLowerInvariant())
+                        {
+                            case "debug":
+                                configuration = "Debug";
+                                break;
+                            case "release":
+                                configuration = "Release";
+                                break;
+                            default:
+                                throw new Exception("Unable to parse compile configuration: " + configuration);
+                        }
+                    }
+                }
+            }
+
             return new TestHeader
             {
                 TargetRuntimeVersion = runtimeVersionRange,
+                Configuration = configuration,
             };
         }
 

@@ -153,6 +153,8 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
         public static TestCompileResult CompileTest(DirectoryInfo dotnetRoot, DirectoryInfo workingDirectory, FileInfo testFile)
         {
             var output = "";
+            TestHeader header = TestParser.ParseTestHeader(testFile);
+            var configurationCommand = " -c " + header.Configuration;
 
             Directory.SetCurrentDirectory(workingDirectory.FullName);
 
@@ -175,13 +177,14 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
 
             testFile.CopyTo(Path.Combine(workingDirectory.FullName, testFile.Name));
 
-            result = Utilities.Exec($"{dotnetRoot}/dotnet", "build");
+            result = Utilities.Exec($"{dotnetRoot}/dotnet", "build" + configurationCommand);
             output += CreateCommandOutput(result);
 
             return new TestCompileResult
             {
                 Success = (result.ExitCode == 0),
                 WorkingDirectory = workingDirectory,
+                Configuration = header.Configuration,
                 Output = output,
             };
         }
@@ -190,8 +193,9 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
         {
             Directory.SetCurrentDirectory(compileResult.WorkingDirectory.FullName);
             var applicationName = compileResult.WorkingDirectory.Name;
+            var configuration = compileResult.Configuration;
 
-            var result = Utilities.Exec($"{dotnetRoot}/dotnet", $"bin/Debug/netcoreapp2.0/{applicationName}.dll");
+            var result = Utilities.Exec($"{dotnetRoot}/dotnet", $"bin/{configuration}/netcoreapp2.0/{applicationName}.dll");
             var output = CreateCommandOutput(result);
 
             return new TestExecutionResult(test, (result.ExitCode == 0), compileResult, output);
