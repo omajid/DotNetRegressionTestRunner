@@ -38,7 +38,10 @@ Other files will not be executed.
 
 `<requires>` places constraints on which runtime version this test
 will be compiled and executed for. This framework will only run tests
-that target the runtime provided with `/path/to/dotnet/to/test`.
+that target the runtime provided with `/path/to/dotnet/to/test`. You
+can specify a range here with the syntax `[2.0, 2.1]` to indicate that
+it should only be run against runtimes with version 2.0 to 2.1,
+inclusive.
 
 `<compile>` allows selecting how the program is compiled.
 `configuration` can be `Debug` or `Release`.
