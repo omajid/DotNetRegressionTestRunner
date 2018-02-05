@@ -93,7 +93,6 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
                     {
                         if (File.Exists(Path.Combine(path, "dotnet")))
                         {
-                            System.Console.WriteLine($"Returning {path}");
                             return path;
                         }
                     }
