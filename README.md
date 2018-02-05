@@ -13,11 +13,11 @@ This is inspired by
 
 Usage:
 
-    dotnet run <path to dotnet sdk> <path to dir containing tests>
+    dotnet run <path to dir containing tests> [<path to dotnet sdk>]
 
 For example:
 
-    $ dotnet run --project RedHat.DotNet.DotNetRegressionTestRunner $(dirname $(readlink -f $(which dotnet))) temp/
+    $ dotnet run --project RedHat.DotNet.DotNetRegressionTestRunner Samples
 
 ## Why
 

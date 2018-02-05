@@ -4,7 +4,7 @@ This framework provides a way to run regression tests. The goal is
 that the user has a separate repository of regression tests and runs
 this framework against it:
 
-    $ dotnetreg /path/to/dotnet/to/test /path/to/tests
+    $ dotnetreg /path/to/tests [/path/to/dotnet/to/test]
 
 The tests look like standalone programs, and can be placed anywhere
 under the `/path/to/tests` root.

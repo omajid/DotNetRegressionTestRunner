@@ -2,7 +2,7 @@
 all: build
 
 run-samples:
-	dotnet run --project RedHat.DotNet.DotNetRegressionTestRunner $$(dirname $$(readlink -f $$(which dotnet))) Samples
+	dotnet run --project RedHat.DotNet.DotNetRegressionTestRunner Samples $$(dirname $$(readlink -f $$(which dotnet)))
 
 build:
 	# dotnet build -c Release RedHat.DotNet.DotNetRegressionTestRunner

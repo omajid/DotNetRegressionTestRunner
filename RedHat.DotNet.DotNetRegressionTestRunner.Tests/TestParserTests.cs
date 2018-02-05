@@ -99,8 +99,8 @@ using System;
             var extracted = TestParser.ParseExtractedTestHeader(header);
             var targetVersion = extracted.TargetRuntimeVersion;
 
-            Assert.Equal(new Version(0,0), targetVersion.MinVersion);
-            Assert.Equal(new Version(int.MaxValue,int.MaxValue), targetVersion.MaxVersion);
+            Assert.Equal(new SemVersion(0,0), targetVersion.MinVersion);
+            Assert.Equal(new SemVersion(int.MaxValue,int.MaxValue), targetVersion.MaxVersion);
         }
 
         [Fact]
@@ -110,9 +110,9 @@ using System;
 
             var extracted = TestParser.ParseExtractedTestHeader(header);
 
-            var minVersion = new Version("1.0");
+            var minVersion = new SemVersion(1, 0);
             var minVersionInclusive = true;
-            var maxVersion = new Version("2.0");
+            var maxVersion = new SemVersion(2, 0);
             var maxVersionInclusive = false;
 
             Assert.Equal(minVersion, extracted.TargetRuntimeVersion.MinVersion);
