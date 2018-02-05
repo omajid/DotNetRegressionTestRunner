@@ -14,12 +14,16 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
         public bool Verbose { get; set; } = false;
     }
 
+    class TestInfo
+    {
+        public FileInfo File;
+        public TestHeader Header;
+    }
+
     class TestCompileResult
     {
         public bool Success { get; set; }
         public DirectoryInfo WorkingDirectory { get; set; }
-        public String Configuration { get; set; } // Debug, Release
-        public String TargetFramework { get; set; }
 
         // TODO select sdk?
 
@@ -28,14 +32,14 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
 
     class TestExecutionResult
     {
-        public FileInfo TestFile { get; }
+        public TestInfo Test { get; }
         public bool Success { get; }
         public TestCompileResult CompileResult { get; }
         public String Output { get; }
 
-        public TestExecutionResult(FileInfo testFile, bool success, TestCompileResult compileResult, String output)
+        public TestExecutionResult(TestInfo test, bool success, TestCompileResult compileResult, String output)
         {
-            this.TestFile = testFile;
+            this.Test = test;
             this.Success = success;
             this.CompileResult = compileResult;
             this.Output = output;
@@ -118,12 +122,13 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             return result;
         }
 
-        public static List<FileInfo> FindTests(DotNet dotnet, DirectoryInfo testRoot)
+        public static List<TestInfo> FindTests(DotNet dotnet, DirectoryInfo testRoot)
         {
             return FindCSharpFiles(testRoot)
-                .Where(TestParser.FileIsATest)
-                .Where(file => TestParser.FileTargetsAvailableRuntime(dotnet, file))
-                .Where(file => TestParser.FileTargetsAvailableFramework(dotnet, file))
+                .Select(file => new TestInfo { File = file, Header = TestParser.ParseTestHeader(file) })
+                .Where(test => test.Header != null)
+                .Where(test => test.Header.TargetsAvailableRuntime(dotnet))
+                .Where(test => test.Header.TargetsAvailableFramework(dotnet))
                 .ToList();
         }
 
@@ -137,12 +142,12 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             return files;
         }
 
-        public static List<TestExecutionResult> ExecuteTests(DotNet dotnet, DirectoryInfo workingDirectory, List<FileInfo> testFilePaths)
+        public static List<TestExecutionResult> ExecuteTests(DotNet dotnet, DirectoryInfo workingDirectory, List<TestInfo> tests)
         {
             var results = new List<TestExecutionResult>();
             var originalCurrentDirectory = Directory.GetCurrentDirectory();
 
-            foreach (var test in testFilePaths)
+            foreach (var test in tests)
             {
                 var newDirectory = new DirectoryInfo(Path.Combine(workingDirectory.FullName, Path.GetRandomFileName()));
                 newDirectory.Create();
@@ -163,10 +168,10 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             return results;
         }
 
-        public static TestCompileResult CompileTest(DotNet dotnet, DirectoryInfo workingDirectory, FileInfo testFile)
+        public static TestCompileResult CompileTest(DotNet dotnet, DirectoryInfo workingDirectory, TestInfo test)
         {
             var output = "";
-            TestHeader header = TestParser.ParseTestHeader(testFile);
+            TestHeader header = test.Header;
             var configurationCommand = " -c " + header.Configuration;
             var frameworkCommand = " -f " + header.TargetFramework;
 
@@ -181,37 +186,33 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             {
                 return new TestCompileResult
                 {
-                    Configuration = header.Configuration,
                     Output = output,
                     Success = false,
-                    TargetFramework = header.TargetFramework,
                     WorkingDirectory = workingDirectory,
                 };
             }
 
             new FileInfo(Path.Combine(workingDirectory.FullName, "Program.cs")).Delete();
 
-            testFile.CopyTo(Path.Combine(workingDirectory.FullName, testFile.Name));
+            test.File.CopyTo(Path.Combine(workingDirectory.FullName, test.File.Name));
 
             result = dotnet.Exec("build" + configurationCommand + frameworkCommand);
             output += CreateCommandOutput(result);
 
             return new TestCompileResult
             {
-                Configuration = header.Configuration,
                 Output = output,
                 Success = (result.ExitCode == 0),
-                TargetFramework = header.TargetFramework,
                 WorkingDirectory = workingDirectory,
             };
         }
 
-        public static TestExecutionResult ExecuteTest(FileInfo test, DotNet dotnet, TestCompileResult compileResult)
+        public static TestExecutionResult ExecuteTest(TestInfo test, DotNet dotnet, TestCompileResult compileResult)
         {
             Directory.SetCurrentDirectory(compileResult.WorkingDirectory.FullName);
             var applicationName = compileResult.WorkingDirectory.Name;
-            var configuration = compileResult.Configuration;
-            var targetFramework = compileResult.TargetFramework;
+            var configuration = test.Header.Configuration;
+            var targetFramework = test.Header.TargetFramework;
 
             var result = dotnet.Exec($"bin/{configuration}/{targetFramework}/{applicationName}.dll");
             var output = CreateCommandOutput(result);
@@ -231,12 +232,12 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
                 if (result.Success)
                 {
                     passed++;
-                    output.WriteLine("Pass:   " + result.TestFile);
+                    output.WriteLine("Pass:   " + result.Test.File);
                 }
                 else
                 {
                     failed++;
-                    output.WriteLine("FAILED: " + result.TestFile);
+                    output.WriteLine("FAILED: " + result.Test.File);
                 }
             }
 
@@ -262,7 +263,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
 
             foreach (var result in results)
             {
-                report.AppendLine("# Test: " + result.TestFile);
+                report.AppendLine("# Test: " + result.Test.File);
                 report.AppendLine("# Compiling: \n" + result.CompileResult.Output);
                 if (result.CompileResult.Success)
                 {

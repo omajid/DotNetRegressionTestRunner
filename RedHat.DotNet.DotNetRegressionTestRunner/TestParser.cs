@@ -13,29 +13,20 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
         public string Configuration { get; set; }
         public string TargetFramework { get; set; }
         public VersionRange TargetRuntimeVersion { get; set; }
+
+        public bool TargetsAvailableRuntime(DotNet dotnet)
+        {
+            return dotnet.RuntimeVersions.Any(runtimeVersion => TargetRuntimeVersion.Contains(runtimeVersion));
+        }
+
+        public bool TargetsAvailableFramework(DotNet dotnet)
+        {
+            return dotnet.Frameworks.Contains(TargetFramework);
+        }
     }
 
     public class TestParser
     {
-        public static bool FileIsATest(FileInfo sourceFile)
-        {
-            var header = ParseTestHeader(sourceFile);
-            return header != null;
-        }
-
-        public static bool FileTargetsAvailableRuntime(DotNet dotnet, FileInfo sourceFile)
-        {
-            var header = ParseTestHeader(sourceFile);
-            return dotnet.RuntimeVersions.Any(runtimeVersion => header.TargetRuntimeVersion.Contains(runtimeVersion));
-            
-        }
-
-        public static bool FileTargetsAvailableFramework(DotNet dotnet, FileInfo sourceFile)
-        {
-            var header = ParseTestHeader(sourceFile);
-            return dotnet.Frameworks.Contains(header.TargetFramework);
-        }
-
         public static TestHeader ParseTestHeader(FileInfo sourceFile)
         {
             var comments = GetFirstComment(sourceFile);
