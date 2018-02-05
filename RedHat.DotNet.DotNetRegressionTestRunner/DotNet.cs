@@ -1,52 +1,151 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 
 namespace RedHat.DotNet.DotNetRegressionTestRunner
 {
     public class DotNet
     {
-        public static string FindBestSDKVersion()
-        {
-            // TODO FIXME
-            return "2.0.3";
-        }
+        private string _baseDir;
+        private SemVersion[] _runtimeVersions;
+        private SemVersion[] _sdkVersions;
+        private string[] _supportedFrameworks;
 
-        public static bool IsValidDotNetHome(DirectoryInfo dotNetHome)
+        public DotNet(string path)
         {
-            if (!dotNetHome.Exists)
+            if (path == null)
             {
-                return false;
+                throw new ArgumentNullException(nameof(path));
             }
 
-            var dotNetExecutible = new FileInfo(Path.Combine(dotNetHome.FullName, "dotnet"));
-            return dotNetHome
-                .EnumerateFiles()
-                .Where(file => file.FullName == dotNetExecutible.FullName)
-                .Any();
+            if (Directory.Exists(path))
+            {
+                path = Path.Combine(path, "dotnet");
+            }
+
+            // follow symbolic links
+            path = RealPath(path);
+
+            _baseDir = Path.GetDirectoryName(path);
         }
 
-        public static IEnumerable<System.Version> GetAvailableRuntimeVersions(DirectoryInfo dotNetHome)
+        public SemVersion[] SdkVersions
         {
-            var netCoreAppDir = new DirectoryInfo(Path.Combine(dotNetHome.FullName, "shared", "Microsoft.NETCore.App"));
-
-            var runtimes = netCoreAppDir
-                .EnumerateDirectories()
-                .Select(dir => new Version(dir.Name))
-                // remove patch update version numbers because that
-                // will just make it harder for users to expect the
-                // right thing with ranges such as: [,2.0]
-                .Select(version => new Version(version.Major, version.Minor));
-
-            return runtimes;
+            get
+            {
+                if (_sdkVersions == null)
+                {
+                    _sdkVersions = ParseVersionsFromChildDirectories(Path.Combine(_baseDir, "sdk"));
+                }
+                return _sdkVersions;
+            }
         }
 
-        public static IEnumerable<string> GetAvailableFrameworks(DirectoryInfo dotNetHome)
+        public SemVersion[] RuntimeVersions
         {
-            // FIXME
-            return new string[] { "netcoreapp2.0" };
+            get
+            {
+                if (_runtimeVersions == null)
+                {
+                    _runtimeVersions = ParseVersionsFromChildDirectories(Path.Combine(_baseDir, "shared", "Microsoft.NETCore.App"));
+                }
+                return _runtimeVersions;
+            }
         }
+
+        public string[] Frameworks
+        {
+            get
+            {
+                if (_supportedFrameworks == null)
+                {
+                    var versions = new HashSet<string>();
+                    foreach (var version in RuntimeVersions)
+                    {
+                        versions.Add($"netcoreapp{version.Major}.{version.Minor}");
+                    }
+                    _supportedFrameworks = versions.ToArray();
+                }
+                return _supportedFrameworks;
+            }
+        }
+
+        public SemVersion LatestSdk => SdkVersions.LastOrDefault();
+
+        public string BaseDir => _baseDir;
+
+        public string DotnetPath => Path.Combine(BaseDir, "dotnet");
+
+        public bool IsValid => RuntimeVersions.Length > 0;
+
+        public static string SystemDotNetPath
+        {
+            get
+            {
+                var pathDirectories = Environment.GetEnvironmentVariable("PATH")?.Split(':');
+                if (pathDirectories != null)
+                {
+                    foreach (var path in pathDirectories)
+                    {
+                        if (File.Exists(Path.Combine(path, "dotnet")))
+                        {
+                            System.Console.WriteLine($"Returning {path}");
+                            return path;
+                        }
+                    }
+                }
+                return null;
+            }
+        }
+
+        public override string ToString() => DotnetPath;
+
+        public ProcessExecutionResult Exec(string arguments) =>
+            Utilities.Exec(DotnetPath, arguments);
+
+        private static SemVersion[] ParseVersionsFromChildDirectories(string dirname)
+        {
+            if (!Directory.Exists(dirname))
+            {
+                return Array.Empty<SemVersion>();
+            }
+            var childDirs = Directory.GetDirectories(dirname);
+            return ParseAndSortVersions(childDirs);
+        }
+
+        private static SemVersion[] ParseAndSortVersions(string[] names)
+        {
+            var versions = new List<SemVersion>();
+            foreach (var name in names)
+            {
+                if (SemVersion.TryParse(Path.GetFileName(name), out SemVersion semver))
+                {
+                    versions.Add(semver);
+                }
+            }
+            versions.Sort();
+            return versions.ToArray();
+        }
+
+        private static unsafe string RealPath(string path)
+        {
+            byte* resolvedPath = stackalloc byte[4096];
+            IntPtr rv = realpath(path, new IntPtr(resolvedPath));
+            if (rv != IntPtr.Zero)
+            {
+                return Marshal.PtrToStringAnsi(rv);
+            }
+            else
+            {
+                return path;
+            }
+        }
+
+        [DllImport("libc")]
+        private static extern IntPtr realpath(string path, IntPtr resolvedPath);
     }
 }
