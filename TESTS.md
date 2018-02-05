@@ -1,13 +1,15 @@
-# Overview
+# Writing Tests
 
 This framework provides a way to run regression tests. The goal is
 that the user has a separate repository of regression tests and runs
-this framework against it:
+this framework against it. The tests look like standalone programs,
+and can be placed anywhere under the `/path/to/tests` root.
 
-    $ dotnetreg /path/to/tests [/path/to/dotnet/to/test]
-
-The tests look like standalone programs, and can be placed anywhere
-under the `/path/to/tests` root.
+Each test will be compiled and executed in a separate process. It is
+okay for tests to do something that crashes the CLR. A test that exits
+normally will count as a successful test. A test that exits with an
+error code, throws an exception or crashes the CLR will count as a
+failed test.
 
 Here is a simple test:
 
@@ -48,8 +50,5 @@ inclusive.
 `configuration` can be `Debug` or `Release`. `framework` can be any
 known framework to target, such as `netcoreapp2.0`.
 
-Each test will be compiled and executed in a separate process. It is
-okay for tests to do something that crashes the CLR. A test that exits
-normally will count as a successful test. A test that exits with an
-error code, throws an exception or crashes the CLR will count as a
-failed test.
+There are many tests in the Samples directory that also server as
+examples.

@@ -69,7 +69,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             }
 
             var workingDirectory = new DirectoryInfo(
-                Path.Combine(Directory.GetCurrentDirectory(), "dotnetreg." + DateTimeOffset.Now.ToUnixTimeMilliseconds()));
+                Path.Combine(Directory.GetCurrentDirectory(), "dntr." + DateTimeOffset.Now.ToUnixTimeMilliseconds()));
             if (!workingDirectory.Exists)
             {
                 workingDirectory.Create();
@@ -93,7 +93,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
 
         public static void PrintUsage(TextWriter output)
         {
-            output.WriteLine("Usage: dotnet DotNetRegressionTestRunner /path/to/tests [/path/to/dotnet]");
+            output.WriteLine("Usage: dntr /path/to/tests [/path/to/dotnet]");
         }
 
         public static ArgumentsAndOptions ParseArgumentsAndOptions(string[] arguments)
