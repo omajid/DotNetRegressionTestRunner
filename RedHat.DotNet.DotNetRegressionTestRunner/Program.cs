@@ -82,7 +82,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             Console.WriteLine("Full report at: " + reportFile);
             Console.WriteLine();
 
-            var tests = FindTests(dotnet, testRoot);
+            var tests = FindTests(dotnet, testRoot, Console.Out);
             var results = ExecuteTests(dotnet, workingDirectory, tests);
 
             PrintSummary(results, Console.Out, Console.Error);
@@ -122,10 +122,10 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             return result;
         }
 
-        public static List<TestInfo> FindTests(DotNet dotnet, DirectoryInfo testRoot)
+        public static List<TestInfo> FindTests(DotNet dotnet, DirectoryInfo testRoot, TextWriter output)
         {
             return FindCSharpFiles(testRoot)
-                .Select(file => new TestInfo { File = file, Header = TestParser.ParseTestHeader(file) })
+                .Select(file => new TestInfo { File = file, Header = TestParser.ParseTestHeader(file, output) })
                 .Where(test => test.Header != null)
                 .Where(test => test.Header.TargetsAvailableRuntime(dotnet))
                 .Where(test => test.Header.TargetsAvailableFramework(dotnet))

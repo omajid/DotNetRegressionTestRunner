@@ -27,12 +27,19 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
 
     public class TestParser
     {
-        public static TestHeader ParseTestHeader(FileInfo sourceFile)
+        public static TestHeader ParseTestHeader(FileInfo sourceFile, TextWriter output)
         {
-            var comments = GetFirstComment(sourceFile);
-            var header = ParseExtractedTestHeader(ExtractTestHeader(comments));
-
-            return header;
+            try
+            {
+                var comments = GetFirstComment(sourceFile);
+                var header = ParseExtractedTestHeader(ExtractTestHeader(comments));
+                return header;
+            }
+            catch (Exception e)
+            {
+                output.WriteLine("WARNING: " + sourceFile.Name + " - Unable to parse test header (" + e.Message + "). Test will be ignored.");
+                return null;
+            }
         }
 
         #region implementation details
@@ -149,7 +156,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
                                 configuration = "Release";
                                 break;
                             default:
-                                throw new Exception("Unable to parse compile configuration: " + configuration);
+                                throw new Exception("Unable to parse compile configuration value '" + configuration + "'");
                         }
                     }
 

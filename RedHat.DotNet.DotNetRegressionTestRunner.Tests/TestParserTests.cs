@@ -138,6 +138,13 @@ using System;
         }
 
         [Fact]
+        public void UnknownConfigurationInTestHeaderCausesException()
+        {
+            var header = "<test><compile configuration=\"foobar\"/></test>";
+            Assert.Throws(typeof(Exception), () => TestParser.ParseExtractedTestHeader(header));
+        }
+
+        [Fact]
         public void DefaultTargetFrameworkIsNetCoreApp()
         {
             var header = "<test/>";
