@@ -7,9 +7,9 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
 {
     public class VersionRange
     {
-        public Version MinVersion { get; set; } = new Version(0, 0);
+        public SemVersion MinVersion { get; set; } = new SemVersion(0, 0);
         public bool MinVersionInclusive { get; set; } = true;
-        public Version MaxVersion { get; set; } = new Version(int.MaxValue, int.MaxValue);
+        public SemVersion MaxVersion { get; set; } = new SemVersion(int.MaxValue, int.MaxValue);
         public bool MaxVersionInclusive { get; set; } = true;
 
         public override string ToString()
@@ -17,7 +17,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             return (MinVersionInclusive ? "[" : "(") + MinVersion + "," + MaxVersion + (MaxVersionInclusive ? "]" : ")");
         }
 
-        public bool IsInRange(Version version)
+        public bool Contains(SemVersion version)
         {
             if ((version < MinVersion) || (version > MaxVersion))
             {
@@ -61,7 +61,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             var minVersion = match.Groups[2].Value;
             if (!string.IsNullOrEmpty(minVersion))
             {
-                bool success = Version.TryParse(minVersion, out Version newVersion);
+                bool success = SemVersion.TryParse(minVersion, out SemVersion newVersion);
                 if (!success)
                 {
                     throw new Exception("Unable to parse version " + minVersion);
@@ -73,7 +73,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             var maxVersion = match.Groups[3].Value;
             if (!string.IsNullOrEmpty(maxVersion))
             {
-                bool success = Version.TryParse(maxVersion, out Version newVersion);
+                bool success = SemVersion.TryParse(maxVersion, out SemVersion newVersion);
                 if (!success)
                 {
                     throw new Exception("Unable to parse version " + maxVersion);

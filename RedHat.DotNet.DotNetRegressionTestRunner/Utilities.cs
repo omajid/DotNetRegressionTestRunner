@@ -4,7 +4,7 @@ using System.IO;
 namespace RedHat.DotNet.DotNetRegressionTestRunner
 {
 
-    class ProcessExecutionResult {
+    public class ProcessExecutionResult {
         public int ExitCode { get; set; }
         public string Command { get; set; }
         public StreamReader StandardOutput { get; set; }

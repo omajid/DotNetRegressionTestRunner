@@ -23,23 +23,17 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             return header != null;
         }
 
-        public static bool FileTargetsAvailableRuntime(DirectoryInfo dotNetHome, FileInfo sourceFile)
+        public static bool FileTargetsAvailableRuntime(DotNet dotnet, FileInfo sourceFile)
         {
             var header = ParseTestHeader(sourceFile);
-            var currentVersion = DotNet.GetAvailableRuntimeVersions(dotNetHome);
-            return currentVersion
-                .ToList()
-                .Where(versionRange => header.TargetRuntimeVersion.IsInRange(versionRange))
-                .Any();
+            return dotnet.RuntimeVersions.Any(runtimeVersion => header.TargetRuntimeVersion.Contains(runtimeVersion));
+            
         }
 
-        public static bool FileTargetsAvailableFramework(DirectoryInfo dotNetHome, FileInfo sourceFile)
+        public static bool FileTargetsAvailableFramework(DotNet dotnet, FileInfo sourceFile)
         {
             var header = ParseTestHeader(sourceFile);
-            var availableFrameworks = DotNet.GetAvailableFrameworks(dotNetHome);
-            return availableFrameworks
-                .Where(framework => header.TargetFramework == framework)
-                .Any();
+            return dotnet.Frameworks.Contains(header.TargetFramework);
         }
 
         public static TestHeader ParseTestHeader(FileInfo sourceFile)

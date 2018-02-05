@@ -46,7 +46,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
     {
         static void Main(string[] args)
         {
-            if (args.Length < 2)
+            if (args.Length < 1)
             {
                 PrintUsage(Console.Error);
                 Environment.Exit(1);
@@ -54,10 +54,10 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
 
             var options = ParseArgumentsAndOptions(args);
 
-            var dotnet = new DirectoryInfo(options.DotNetHome);
+            var dotnet = new DotNet(options.DotNetHome);
             var testRoot = new DirectoryInfo(options.TestRoot);
 
-            if (!DotNet.IsValidDotNetHome(dotnet))
+            if (!dotnet.IsValid)
             {
                 Console.Error.WriteLine(dotnet + " does not look like a .NET Core home directory");
                 PrintUsage(Console.Error);
@@ -66,6 +66,10 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
 
             var workingDirectory = new DirectoryInfo(
                 Path.Combine(Directory.GetCurrentDirectory(), "dotnetreg." + DateTimeOffset.Now.ToUnixTimeMilliseconds()));
+            if (!workingDirectory.Exists)
+            {
+                workingDirectory.Create();
+            }
             var reportFile = new FileInfo(Path.Combine(workingDirectory.FullName, "report.txt"));
 
             Console.WriteLine("Testing: " + dotnet);
@@ -85,7 +89,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
 
         public static void PrintUsage(TextWriter output)
         {
-            output.WriteLine("Usage: dotnet DotNetRegressionTestRunner /path/to/dotnet /path/to/tests");
+            output.WriteLine("Usage: dotnet DotNetRegressionTestRunner /path/to/tests [/path/to/dotnet]");
         }
 
         public static ArgumentsAndOptions ParseArgumentsAndOptions(string[] arguments)
@@ -99,18 +103,27 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
                 toProcess.Remove("--verbose");
             }
 
-            result.DotNetHome = toProcess[0];
-            result.TestRoot = Path.GetFullPath(toProcess[1]);
+            result.TestRoot = Path.GetFullPath(toProcess[0]);
+            toProcess.RemoveAt(0);
+
+            if (toProcess.Count > 0)
+            {
+                result.DotNetHome = toProcess[0];
+            }
+            else
+            {
+                result.DotNetHome = DotNet.SystemDotNetPath;
+            }
 
             return result;
         }
 
-        public static List<FileInfo> FindTests(DirectoryInfo dotNetHome, DirectoryInfo testRoot)
+        public static List<FileInfo> FindTests(DotNet dotnet, DirectoryInfo testRoot)
         {
             return FindCSharpFiles(testRoot)
                 .Where(TestParser.FileIsATest)
-                .Where(file => TestParser.FileTargetsAvailableRuntime(dotNetHome, file))
-                .Where(file => TestParser.FileTargetsAvailableFramework(dotNetHome, file))
+                .Where(file => TestParser.FileTargetsAvailableRuntime(dotnet, file))
+                .Where(file => TestParser.FileTargetsAvailableFramework(dotnet, file))
                 .ToList();
         }
 
@@ -124,7 +137,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             return files;
         }
 
-        public static List<TestExecutionResult> ExecuteTests(DirectoryInfo dotnetRoot, DirectoryInfo workingDirectory, List<FileInfo> testFilePaths)
+        public static List<TestExecutionResult> ExecuteTests(DotNet dotnet, DirectoryInfo workingDirectory, List<FileInfo> testFilePaths)
         {
             var results = new List<TestExecutionResult>();
             var originalCurrentDirectory = Directory.GetCurrentDirectory();
@@ -134,10 +147,10 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
                 var newDirectory = new DirectoryInfo(Path.Combine(workingDirectory.FullName, Path.GetRandomFileName()));
                 newDirectory.Create();
 
-                var compileResult = CompileTest(dotnetRoot, newDirectory, test);
+                var compileResult = CompileTest(dotnet, newDirectory, test);
                 if (compileResult.Success)
                 {
-                    results.Add(ExecuteTest(test, dotnetRoot, compileResult));
+                    results.Add(ExecuteTest(test, dotnet, compileResult));
                 }
                 else
                 {
@@ -150,7 +163,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             return results;
         }
 
-        public static TestCompileResult CompileTest(DirectoryInfo dotnetRoot, DirectoryInfo workingDirectory, FileInfo testFile)
+        public static TestCompileResult CompileTest(DotNet dotnet, DirectoryInfo workingDirectory, FileInfo testFile)
         {
             var output = "";
             TestHeader header = TestParser.ParseTestHeader(testFile);
@@ -161,7 +174,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
 
             // TODO select the runtime to target
 
-            var result = Utilities.Exec($"{dotnetRoot}/dotnet", "new console");
+            var result = dotnet.Exec("new console");
             output += CreateCommandOutput(result);
 
             if (result.ExitCode != 0)
@@ -180,7 +193,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
 
             testFile.CopyTo(Path.Combine(workingDirectory.FullName, testFile.Name));
 
-            result = Utilities.Exec($"{dotnetRoot}/dotnet", "build" + configurationCommand + frameworkCommand);
+            result = dotnet.Exec("build" + configurationCommand + frameworkCommand);
             output += CreateCommandOutput(result);
 
             return new TestCompileResult
@@ -193,14 +206,14 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             };
         }
 
-        public static TestExecutionResult ExecuteTest(FileInfo test, DirectoryInfo dotnetRoot, TestCompileResult compileResult)
+        public static TestExecutionResult ExecuteTest(FileInfo test, DotNet dotnet, TestCompileResult compileResult)
         {
             Directory.SetCurrentDirectory(compileResult.WorkingDirectory.FullName);
             var applicationName = compileResult.WorkingDirectory.Name;
             var configuration = compileResult.Configuration;
             var targetFramework = compileResult.TargetFramework;
 
-            var result = Utilities.Exec($"{dotnetRoot}/dotnet", $"bin/{configuration}/{targetFramework}/{applicationName}.dll");
+            var result = dotnet.Exec($"bin/{configuration}/{targetFramework}/{applicationName}.dll");
             var output = CreateCommandOutput(result);
 
             return new TestExecutionResult(test, (result.ExitCode == 0), compileResult, output);
