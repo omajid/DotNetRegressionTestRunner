@@ -86,7 +86,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             var results = ExecuteTests(dotnet, workingDirectory, tests);
 
             PrintSummary(results, Console.Out, Console.Error);
-            WriteReport(results, reportFile);
+            WriteReport(dotnet, results, reportFile);
 
             Environment.Exit(0);
         }
@@ -242,37 +242,13 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             }
 
             output.WriteLine();
-            output.WriteLine("Total: " + total + " Passed: " + passed + " Failed: " + failed);
+            output.WriteLine("Total: " + total + ", Passed: " + passed + ", Failed: " + failed);
             output.WriteLine();
         }
 
-        public static void WriteReport(List<TestExecutionResult> results, FileInfo report)
+        public static void WriteReport(DotNet dotnet, List<TestExecutionResult> results, FileInfo report)
         {
-            File.WriteAllText(report.FullName, GenerateReport(results));
-        }
-
-        public static string GenerateReport(List<TestExecutionResult> results)
-        {
-            var report = new StringBuilder();
-
-            // TODO what more information would be useful to have?
-
-            report.AppendLine("Test Report");
-            report.AppendLine("Generated on " + DateTime.Now);
-            report.AppendLine();
-
-            foreach (var result in results)
-            {
-                report.AppendLine("# Test: " + result.Test.File);
-                report.AppendLine("# Compiling: \n" + result.CompileResult.Output);
-                if (result.CompileResult.Success)
-                {
-                    report.AppendLine("# Executing: \n" + result.Output);
-                }
-                report.AppendLine();
-            }
-
-            return report.ToString();
+            File.WriteAllText(report.FullName, Report.GenerateReport(dotnet, results));
         }
 
         public static string CreateCommandOutput(ProcessExecutionResult result)
