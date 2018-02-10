@@ -8,7 +8,7 @@ build:
 	# dotnet build -c Release RedHat.DotNet.DotNetRegressionTestRunner
 	dotnet build -c Release RedHat.DotNet.DotNetRegressionTestRunner.Tests
 	dotnet publish -c Release RedHat.DotNet.DotNetRegressionTestRunner -r linux-x64 -o $$(pwd)/bin
-	cd bin && ln -s RedHat.DotNet.DotNetRegressionTestRunner dntr
+	cd bin && test -f dntr || ln -s RedHat.DotNet.DotNetRegressionTestRunner dntr
 
 check:
 	dotnet test RedHat.DotNet.DotNetRegressionTestRunner.Tests
