@@ -83,7 +83,10 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             Console.WriteLine();
 
             var tests = FindTests(dotnet, testRoot, Console.Out);
-            var results = ExecuteTests(dotnet, workingDirectory, tests);
+            var results = ExecuteTests(dotnet,
+                                       workingDirectory,
+                                       tests,
+                                       (test) => PrintTestResult(test, Console.Out));
 
             PrintSummary(results, Console.Out, Console.Error);
             WriteReport(dotnet, results, reportFile);
@@ -142,7 +145,7 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             return files;
         }
 
-        public static List<TestExecutionResult> ExecuteTests(DotNet dotnet, DirectoryInfo workingDirectory, List<TestInfo> tests)
+        public static List<TestExecutionResult> ExecuteTests(DotNet dotnet, DirectoryInfo workingDirectory, List<TestInfo> tests, Action<TestExecutionResult> Print)
         {
             var results = new List<TestExecutionResult>();
             var originalCurrentDirectory = Directory.GetCurrentDirectory();
@@ -155,11 +158,14 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
                 var compileResult = CompileTest(dotnet, newDirectory, test);
                 if (compileResult.Success)
                 {
-                    results.Add(ExecuteTest(test, dotnet, compileResult));
+                    var testRan = ExecuteTest(test, dotnet, compileResult);
+                    Print(testRan);
+                    results.Add(testRan);
                 }
                 else
                 {
                     var failedToCompile = new TestExecutionResult(test, false, compileResult, null);
+                    Print(failedToCompile);
                     results.Add(failedToCompile);
                 }
             }
@@ -220,26 +226,23 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
             return new TestExecutionResult(test, (result.ExitCode == 0), compileResult, output);
         }
 
+        public static void PrintTestResult(TestExecutionResult result, TextWriter output)
+        {
+            if (result.Success)
+            {
+                output.WriteLine("Pass:   " + result.Test.File);
+            }
+            else
+            {
+                output.WriteLine("FAILED: " + result.Test.File);
+            }
+        }
+
         public static void PrintSummary(List<TestExecutionResult> results, TextWriter output, TextWriter error)
         {
-            var total = 0;
-            var passed = 0;
-            var failed = 0;
-
-            foreach (var result in results)
-            {
-                total++;
-                if (result.Success)
-                {
-                    passed++;
-                    output.WriteLine("Pass:   " + result.Test.File);
-                }
-                else
-                {
-                    failed++;
-                    output.WriteLine("FAILED: " + result.Test.File);
-                }
-            }
+            var total = results.Count();
+            var passed = results.Where(result => result.Success).Count();
+            var failed = results.Where(result => !result.Success).Count();
 
             output.WriteLine();
             output.WriteLine("Total: " + total + ", Passed: " + passed + ", Failed: " + failed);
