@@ -4,7 +4,7 @@
 
 This is a framework that lets users write tests - as simple programs
 with `Main` methods - that can exercise features in the desired .NET
-Core sdk/runtimes.
+Core SDK and Runtimes.
 
 This lets tests conditionally compile and run for selected SDK and
 Runtime versions - it is okay to write tests that require API only
@@ -13,7 +13,9 @@ The framework will skip tests that are not applicable to the targetted
 runtime.
 
 Unlike *xUnit* and similar frameworks, the tests written here are
-expected to be **dirty**. They may even crash the VM.
+expected to be **dirty**. They may even crash the VM. See `TESTS.md`
+for more details on how to write tests. A number of sample tests are
+included in the `Samples` directory.
 
 This is inspired by
 [jtreg](http://openjdk.java.net/jtreg/).

@@ -41,14 +41,17 @@ Other files will not be executed.
 
 `<requires>` places constraints on which runtime version this test
 will be compiled and executed for. This framework will only run tests
-that target the runtime provided with `/path/to/dotnet/to/test`. You
-can specify a range here with the syntax `[2.0, 2.1]` to indicate that
-it should only be run against runtimes with version 2.0 to 2.1,
-inclusive.
+that target a runtime available in the `dotnet` being tested. You can
+specify a range here with the syntax `[2.0, 2.1]` to indicate that it
+should only be run against runtimes with version 2.0 to 2.1,
+inclusive. The range is specified in [interval
+notation](https://en.wikipedia.org/wiki/Interval_(mathematics)#Notations_for_intervals),
+with a missing value implying unbounded. For example, `[2.0,)` implies
+that 2.0 or any later version is acceptable.
 
 `<compile>` allows selecting how the program is compiled.
 `configuration` can be `Debug` or `Release`. `framework` can be any
 known framework to target, such as `netcoreapp2.0`.
 
-There are many tests in the Samples directory that also server as
+There are many tests in the `Samples` directory that also serve as
 examples.
