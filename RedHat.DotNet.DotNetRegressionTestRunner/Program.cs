@@ -2,18 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 
 namespace RedHat.DotNet.DotNetRegressionTestRunner
 {
-    class ArgumentsAndOptions
-    {
-        public String DotNetHome { get; set; }
-        public String TestRoot { get; set; }
-
-        public bool Verbose { get; set; } = false;
-    }
-
     class TestInfo
     {
         public FileInfo File;
@@ -50,13 +41,12 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
     {
         static void Main(string[] args)
         {
-            if (args.Length < 1)
+            var options = ArgumentsAndOptions.Parse(args);
+            if (options == null)
             {
                 PrintUsage(Console.Error);
                 Environment.Exit(1);
             }
-
-            var options = ParseArgumentsAndOptions(args);
 
             var dotnet = new DotNet(options.DotNetHome);
             var testRoot = new DirectoryInfo(options.TestRoot);
@@ -97,32 +87,6 @@ namespace RedHat.DotNet.DotNetRegressionTestRunner
         public static void PrintUsage(TextWriter output)
         {
             output.WriteLine("Usage: dntr /path/to/tests [/path/to/dotnet]");
-        }
-
-        public static ArgumentsAndOptions ParseArgumentsAndOptions(string[] arguments)
-        {
-            var result = new ArgumentsAndOptions();
-
-            var toProcess = arguments.ToList();
-            if (toProcess.Contains("--verbose"))
-            {
-                result.Verbose = true;
-                toProcess.Remove("--verbose");
-            }
-
-            result.TestRoot = Path.GetFullPath(toProcess[0]);
-            toProcess.RemoveAt(0);
-
-            if (toProcess.Count > 0)
-            {
-                result.DotNetHome = toProcess[0];
-            }
-            else
-            {
-                result.DotNetHome = DotNet.SystemDotNetPath;
-            }
-
-            return result;
         }
 
         public static List<TestInfo> FindTests(DotNet dotnet, DirectoryInfo testRoot, TextWriter output)
